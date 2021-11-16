@@ -1,8 +1,3 @@
-
-# file Smith-Waterman
-# /usr/bin/python
-# coding : utf-8
-
 from os import X_OK
 import numpy as np
 from numpy import *
@@ -12,11 +7,12 @@ import getopt
 substitionMatrixFile = open("scoring1.txt")
 lines = substitionMatrixFile.readlines()
 aminoacids= lines[20].split("\t")
+pathPositions = []
+
+
 
 
 def initMatrix(seq1, seq2):
-    print("initmatrix x " + str(len(seq1)+1))
-    print("initmatrix y " + str(len(seq2)+1))
     x = len(seq1)+1
     y = len(seq2)+1
     distanceMatrix = []
@@ -29,20 +25,9 @@ def initMatrix(seq1, seq2):
         distanceMatrix[0][i] = -i
     for y in range(y):
         distanceMatrix[y][0] = -y
-    print(distanceMatrix)
     return distanceMatrix
 
-def loss_function2(matrix,i,j,Label_Dir):
-    
-    a = matrix[i-1,j] + compare(Seq1[i-1],'-')
-    b = matrix[i,j-1] + compare(Seq2[j-1],'-')
-    c = matrix[i-1,j-1] + compare(Seq1[i-1],Seq2[j-1])
-    save_CellLabel(i,j,a,b,c,Label_Dir)
-    if max(a,b,c) < 0:
-        matrix[i,j] = 0
-    else:
-        matrix[i,j] = max(a,b,c)
-    return matrix
+
 
 def printMatrix(matrix):
     for y in range(len(matrix)):
@@ -50,38 +35,14 @@ def printMatrix(matrix):
             print(str(matrix[y][x]), end= "\t")
         print("")
 
-
-
-def generate_matrix(row,col):
-    
-    x = len(row)+1
-    y = len(col)+1
-    distance_matrix = mat(zeros((x,y)))
-    Cell_Label = {}
-    
-    for i in range(1,x):
-        for j in range(1,y):
-            distance_matrix = loss_function(distance_matrix,i,j,Cell_Label)
-            
-    return distance_matrix , Cell_Label
     
 def getOptimalGlobalPath(matrix, seq1, seq2):
-    
-    print("seq1 " + seq1)
-    print("seq2 " + seq2)
     for j in range(1,len(matrix)):
         for i in range(1,len(matrix[0])):
-            printMatrix(matrix)
-            print("seq1 " + seq1)
-            print("seq2 " + seq2)
-            print("i  "+str(i)+ "   j "+str(j))
             a = matrix[j-1][i] + gapPenalty
             b = matrix[j][i-1] + gapPenalty
             c = matrix[j-1][i-1] + compare(seq1[i-1],seq2[j-1])
             matrix[j][i] = max(a,b,c)
-            print(max(a,b,c))
-    print(matrix)
-    print(gapPenalty)
     return matrix
 
 def compare(str1,str2):
@@ -125,10 +86,18 @@ def save_CellLabel(m,n,a,b,c,matrix_to_return):
         if max(a,b,c) == c:
             matrix_to_return[position].append('O')            
 
-
+def generate_matrix(row,col):
     
-
-
+    x = len(row)+1
+    y = len(col)+1
+    distance_matrix = mat(zeros((x,y)))
+    Cell_Label = {}
+    
+    for i in range(1,x):
+        for j in range(1,y):
+            distance_matrix = loss_function(distance_matrix,i,j,Cell_Label)
+    return distance_matrix , Cell_Label
+    
 
 def get_string(file):
     
@@ -143,11 +112,9 @@ def get_string(file):
     return string 
 
 def print_matrix(result):
-    
-    print ('socore matrix: ')
     row , col = shape(result)
-    print()
-    print("        ", end = '')
+
+    print("\t\t", end = '')
     for i in Seq2:
         print(i, end='\t')
     print()
@@ -155,13 +122,13 @@ def print_matrix(result):
         if (i > 0):
             print(Seq1[i-1], end = '\t')
         else:
-            print("  ", end = '')
+            print("\t", end = '')
     
         for j in range(0, col):
             print('%d' % result[i,j], end = '\t')
         print()
         
-def get_OptimalPath(Scoring_matrix , Label_dir):
+def getLocalOptimalPath(Scoring_matrix , Label_dir):
     #get OptimalPath base Label Matrix
     x ,y  = shape(Scoring_matrix)
     Start = {'position':[],'score' :0}
@@ -210,64 +177,141 @@ def get_OptimalPath(Scoring_matrix , Label_dir):
     return AtoReturn , BtoReturn
             
 def print_result(sequenceA,sequenceB):
-    print ('\n')
-    print ('    Result    \n')
-    print ('Sequences : ')
-    print ('Sequence 1 : ' + Seq1)
-    print ('Sequence 2 : ' + Seq2+'\n')
-    print ('Paramenters :')
-    print ('Substitution matrix :  a = b   S(a,b)= ' )
-    print ('                       a != b  S(a,b)= ' +'\n')
-    print ('Result: ')
+    print ('Smith-Waterman Algorithm (local optimal alignment) result:')
     for a in range(len(sequenceA)):
         for b in range(len(sequenceB)):           
             print ('Sequence1   ' + str(sequenceA[a]))
             print ('Sequence2   ' + str(sequenceB[b]))
     
+def printIdentityPercentage(seqA, seqB):
+    matchCount = 0
+    for i in range(len(seqA[0])):
+        if(seqA[0][i] == seqB[0][i]):
+            matchCount+=1
+    print("Identity percentage: " + "{:.2f}".format(matchCount*100/len(seqA[0]))+"%")
+    return 
+
+def printAlignedSequences():
+    alignedSeq1 = ""
+    alignedSeq2 = ""
+    preI = 0
+    preJ = 0
+    for i,j in pathPositions:
+        if(preI+1 == i and preJ+1 == j):
+            alignedSeq1 += Seq1[j-1]
+            alignedSeq2 += Seq2[i-1]
+        elif(preI+1 == i):
+            alignedSeq1 += "-"
+            alignedSeq2 += Seq2[i-1]
+        else:
+            alignedSeq1 += Seq1[j-1]
+            alignedSeq2 += "-"
+        preI = i
+        preJ = j
+    print(alignedSeq1)
+    print(alignedSeq2)
+
+    #calculating the identity percentage
+    matchCount=0
+    for i in range(len(alignedSeq1)):
+        if(alignedSeq1[i]==alignedSeq2[2]):
+            matchCount+=1
+    return matchCount*100 / len(alignedSeq1)
     
     
-            
-            
+def traceBackStart(matrix):
+    xMax = len(matrix[0])        
+    yMax = len(matrix)
+    score = matrix[yMax-1][xMax-1] 
+
+    if(matrix[yMax-2][xMax-2]  == score - compare(Seq1[xMax-2],Seq2[yMax-2])):
+        if(traceBack(matrix, yMax-2, xMax-2)):
+            pathPositions.append([yMax-1,xMax-1])
+            return True
+    elif(matrix[yMax-2][xMax-1]  == score - gapPenalty):
+        if(traceBack(matrix, yMax-2, xMax-1)):
+            pathPositions.append([yMax-1,xMax-1])
+            return True
+    elif(matrix[yMax-1][xMax-2]  == score - gapPenalty):
+        if(traceBack(matrix, yMax-1, xMax-2)):
+
+            pathPositions.append([yMax-1,xMax-1])
+            return True
+    else:
+        print("something is wrong here")            
     
-    
+def traceBack(matrix, y, x):
+    score = matrix[y][x]
+    if(x==1 or y==1):
+        pathPositions.append([x,y])
+        return True
+    if(matrix[y-1][x-1]  == score - compare(Seq1[x-1],Seq2[y-1])):
+        if(traceBack(matrix, y-1, x-1)):
+            pathPositions.append([y,x])
+            return True
+    elif(matrix[y-1][x]  == score - gapPenalty):
+        if(traceBack(matrix, y-1, x)):
+            pathPositions.append([y,x])
+            return True
+    elif(matrix[y][x-1]  == score - gapPenalty):
+        if(traceBack(matrix, y, x-1)):
+            pathPositions.append([y,x])
+            return True
+    else:
+        return False
+ 
+
+def getAlignmentScore(seqA, seqB):
+    score = 0
+    for i in range(len(seqA[0])):
+        score+= compare(seqA[0][i], seqB[0][i])
+    return score
+
 
 
 def main():
-    
-    Distance_matrix , Cell_Label = generate_matrix(Seq1,Seq2)
-    print_matrix(Distance_matrix)
-    SequenceA,SequenceB = get_OptimalPath(Distance_matrix,Cell_Label)
-    print_result(SequenceA,SequenceB)
-    print("forget about it")
-
-    #file1 = open("scoring1.txt")
-    #lines = file1.readlines()
-    #print(compare("R","R"))
-
-    matrix2 = initMatrix(Seq1, Seq2)
-    getOptimalGlobalPath(matrix2, Seq1, Seq2)
-
-
-    
+    if(scope == "local"):
+        Distance_matrix , Cell_Label = generate_matrix(Seq1,Seq2)
+        print_matrix(Distance_matrix)
+        SequenceA,SequenceB = getLocalOptimalPath(Distance_matrix,Cell_Label)
+        print_result(SequenceA,SequenceB)
+        print("Alignment score: "+ str( getAlignmentScore(SequenceA,SequenceB )))
+        printIdentityPercentage(SequenceA,SequenceB)
+        
+    else:
+        matrix2 = initMatrix(Seq1, Seq2)
+        getOptimalGlobalPath(matrix2, Seq1, Seq2)
+        printMatrix(matrix2)
+        traceBackStart(matrix2)
+        print("Needleman–Wunsch Algorithm (global optimal alignment) result:")
+        identityPercentage = printAlignedSequences()
+        print("Alignment score: "+ str(matrix2[len(matrix2)-1][len(matrix2[0])-1]))
+        print("Identity percentage: " + "{:.2f}".format(identityPercentage)+"%")
+        
+        
     
     
     
 
 if __name__ == '__main__' :
-    opts , args = getopt.getopt(sys.argv[1:],'h',['gap=','file1=','file2='])
+    opts , args = getopt.getopt(sys.argv[1:],'h',['gap=','file1=','file2=', 'scope=', 'scoringfile='])
     InputFile1 = 'C:\\Users\\kykse\\Desktop\\mygod\\Sequence\\Seq1.fasta'
     InputFile2 = 'C:\\Users\\kykse\\Desktop\\mygod\\Sequence\\Seq2.fasta'
+    scoringFile = 'C:\\Users\\kykse\\Desktop\\mygod\\scoring1.txt'
     gapPenalty = -2
+    scope="global"
     
     for op , value in opts:
         if op == '--file1':
             InputFile1 = value
         elif op == '--file2':
             InputFile2 = value
+        elif op == '--scoringfile':
+            InputFile2 = value
         elif op == '--gap':
             match_score = float(value)
-            
+        elif op == '--scope':
+            scope = value
     Seq1 = get_string(InputFile1)
     Seq2 = get_string (InputFile2)
-    print ('matrix shape: '+str(len(Seq1))+'*'+str(len(Seq2)))
     main()
