@@ -35,7 +35,17 @@ def printMatrix(matrix):
             print(str(matrix[y][x]), end= "\t")
         print("")
 
+def initMatrix0(Seq1,Seq2):
+    matrix = []
+    for j in range(len(Seq2)+1):
+        row = []
+        for  i in range(len(Seq1)+1):
+            row.append(0)
+        matrix.append(row)
+    return matrix
+
     
+
 def getOptimalGlobalPath(matrix, seq1, seq2):
     gapPositions = [[0]*len(matrix[0]) for i in range(len(matrix))]
     for j in range(1,len(matrix)):
@@ -57,8 +67,6 @@ def getOptimalGlobalPath(matrix, seq1, seq2):
             else:
                 gapPositions[j][i]=0
             matrix[j][i] = max(a,b,c)
-
-    printMatrix(matrix)
     return gapPositions
 
 def compare(str1,str2):
@@ -76,44 +84,7 @@ def compare(str1,str2):
     return int(lines[index1].split("\t")[index2])
 
     
-def loss_function(matrix,i,j,Label_Dir):
-    
-    a = matrix[i-1,j] + compare(Seq1[i-1],'-')
-    b = matrix[i,j-1] + compare(Seq2[j-1],'-')
-    c = matrix[i-1,j-1] + compare(Seq1[i-1],Seq2[j-1])
-    save_CellLabel(i,j,a,b,c,Label_Dir)
-    if max(a,b,c) < 0:
-        matrix[i,j] = 0
-    else:
-        matrix[i,j] = max(a,b,c)
-    return matrix
-     
-def save_CellLabel(m,n,a,b,c,matrix_to_return):
-    
-    position = '%s%s' % (str(m),str(n))
-    matrix_to_return[position] = []
-    if max(a,b,c) < 0:
-        matrix_to_return[position].append('N')
-    else:
-        if max(a,b,c) == a:
-            matrix_to_return[position].append('U')
-        if max(a,b,c) == b:
-            matrix_to_return[position].append('L')
-        if max(a,b,c) == c:
-            matrix_to_return[position].append('O')            
 
-def generate_matrix(row,col):
-    
-    x = len(row)+1
-    y = len(col)+1
-    distance_matrix = mat(zeros((x,y)))
-    Cell_Label = {}
-    
-    for i in range(1,x):
-        for j in range(1,y):
-            distance_matrix = loss_function(distance_matrix,i,j,Cell_Label)
-    return distance_matrix , Cell_Label
-    
 
 def get_string(file):
     
@@ -127,71 +98,41 @@ def get_string(file):
                 
     return string 
 
-def print_matrix(result):
-    row , col = shape(result)
 
-    print("\t\t", end = '')
-    for i in Seq2:
-        print(i, end='\t')
-    print()
-    for i in range(0, row):
-        if (i > 0):
-            print(Seq1[i-1], end = '\t')
-        else:
-            print("\t", end = '')
-    
-        for j in range(0, col):
-            print('%d' % result[i,j], end = '\t')
-        print()
+def getLocalOptimalPath(matrix, seq1, seq2):
+    MAXx = 0
+    MAXy = 0
+    MAXval = 0
+    gapPositions = [[0]*len(matrix[0]) for i in range(len(matrix))]
+    for j in range(1,len(matrix)):
+        for i in range(1,len(matrix[0])):
+            if(gapPositions[j-1][i]== 1):
+                a = matrix[j-1][i] + gapExtensionPenalty
+            if(gapPositions[j][i-1]==1):
+                b = matrix[j][i-1] + gapExtensionPenalty
         
-def getLocalOptimalPath(Scoring_matrix , Label_dir):
-    #get OptimalPath base Label Matrix
-    x ,y  = shape(Scoring_matrix)
-    Start = {'position':[],'score' :0}
-    
-    # Find the starting position
-    for i in range(1,x):
-        for j in range(1,y):
-            position = '%s%s' % (str(i),str(j))
-            if Scoring_matrix[i,j] == Start['score']:
-                Start['position'].append(position)
-            if Scoring_matrix[i,j] > Start['score']:
-                Start['position'] = [position] 
-                Start['score'] = Scoring_matrix[i,j]
-    
-    AtoReturn = []
-    BtoReturn = []
-    for p in range(0,len(Start['position'])):
-        location = Start['position'][p]
-        row = int(location[0])
-        col = int(location[1])
-        new_SeqA = ''
-        new_Seqb = ''
-        while 1:
-            if 'N' in Label_dir[location]:  
-                AtoReturn.append(new_SeqA[::-1])
-                BtoReturn.append(new_Seqb[::-1])
-                break            
-            if 'L' in Label_dir[location]:
-                if len(Label_dir[location]) == 1:
-                    col = col-1                
-                new_SeqA = new_SeqA + '-'
-                new_Seqb = new_Seqb + Seq2[col]                                
-            elif 'U' in Label_dir[location]:
-                if len(Label_dir[location]) == 1:
-                    row = row-1                 
-                new_Seqb = new_Seqb + '-'
-                new_SeqA = new_SeqA + Seq1[row]                             
-            elif 'O' in Label_dir[location]:
-                row , col = row-1 ,col-1
-                new_SeqA = new_SeqA + Seq1[row]
-                new_Seqb = new_Seqb + Seq2[col]      
-            if len(Label_dir[location]) > 1:
-                row , col = row-1 , col-1
-            location = '%s%s' % (str(row),str(col))
-
-    return AtoReturn , BtoReturn
+            if(gapPositions[j][i-1]!= 1 or gapPositions[j-1][i]!= 1):
+                a = matrix[j-1][i] + gapPenalty
+                b = matrix[j][i-1] + gapPenalty
             
+            c = matrix[j-1][i-1] + compare(seq1[i-1],seq2[j-1])
+            if(max(a,b,c,0)==a):
+                gapPositions[j][i]=1
+            elif(max(a,b,c,0)==b):
+                gapPositions[j][i]=1
+            else:
+                gapPositions[j][i]=0
+            matrix[j][i] = max(a,b,c,0)
+            if(matrix[j][i]>MAXval):
+                MAXval = matrix[j][i]
+                MAXx = i
+                MAXy = j
+
+    return MAXx,MAXy
+    
+
+
+
 def print_result(sequenceA,sequenceB):
     print ('Smith-Waterman Algorithm (local optimal alignment) result:')
     for a in range(len(sequenceA)):
@@ -236,13 +177,13 @@ def printAlignedSequences():
         return 1
     return matchCount*100 / len(alignedSeq1)
     
-    
+
+
+
 def traceBackStart(matrix):
     xMax = len(matrix[0])        
     yMax = len(matrix)
     score = matrix[yMax-1][xMax-1] 
-
-
     if(matrix[yMax-2][xMax-2]  == score - compare(Seq1[xMax-2],Seq2[yMax-2])):
         if(traceBack(matrix, yMax-2, xMax-2)):
             pathPositions.append([yMax-1,xMax-1])
@@ -264,13 +205,44 @@ def traceBackStart(matrix):
             pathPositions.append([yMax-1,xMax-1])
             return True
     else:
-        print("something is wrong here")            
-    
+        print("something is wrong here")       
+
+
+def traceBack1(matrix, y, x):
+    score = matrix[y][x]
+    if(score == 0):
+        pathPositions.append([y,x])
+        return True
+    if(matrix[y-1][x-1]  == score - compare(Seq1[x-1],Seq2[y-1])):
+        if(traceBack1(matrix, y-1, x-1)):
+            pathPositions.append([y,x])
+            return True
+    if(matrix[y-1][x]  == score - gapExtensionPenalty):
+        if(traceBack1(matrix, y-1, x)):
+            pathPositions.append([y,x])
+            return True
+    if(matrix[y][x-1]  == score - gapExtensionPenalty):
+        if(traceBack1(matrix, y, x-1)):
+            pathPositions.append([y,x])
+            return True
+    if(matrix[y-1][x]  == score - gapPenalty):
+        if(traceBack1(matrix, y-1, x)):
+            pathPositions.append([y,x])
+            return True
+    if(matrix[y][x-1]  == score - gapPenalty):
+        if(traceBack1(matrix, y, x-1)):
+            pathPositions.append([y,x])
+            return True
+    else:
+        return False
+ 
+
+
+
 def traceBack(matrix, y, x):
     score = matrix[y][x]
-    print("Traceback x:"+ str(x)+ "   y:"+str(y))
     if(x==1 or y==1):
-        pathPositions.append([x,y])
+        pathPositions.append([y,x])
         return True
     if(matrix[y-1][x-1]  == score - compare(Seq1[x-1],Seq2[y-1])):
         if(traceBack(matrix, y-1, x-1)):
@@ -293,14 +265,6 @@ def traceBack(matrix, y, x):
             pathPositions.append([y,x])
             return True
     else:
-        print("current score:"+str(score))
-        print(str(matrix[y-1][x-1]) +"\t" + str(matrix[y-1][x]))
-        print(str(matrix[y][x-1]) +"\t" + str(matrix[y][x]))
-        print("-------")
-        #print(str(compare(matrix[y-1][x-1],matrix[y][x])) + "\t" + str(compare(matrix[y-1][x],matrix[y][x])))
-        #print(str(compare(matrix[y][x-1],matrix[y][x])) + "\t" + str(compare(matrix[y][x],matrix[y][x])))
-
-
         return False
  
 
@@ -328,30 +292,26 @@ def main():
     f= open('damn.txt', 'w') 
     sys.stdout = f
     if(scope == "local"):
-        Distance_matrix , Cell_Label = generate_matrix(Seq1,Seq2)
-        print_matrix(Distance_matrix)
-        SequenceA,SequenceB = getLocalOptimalPath(Distance_matrix,Cell_Label)
-        print_result(SequenceA,SequenceB)
-        print("Alignment score: "+ str( getAlignmentScore(SequenceA,SequenceB )))
-        printIdentityPercentage(SequenceA,SequenceB)
-        
+        matrix1 = initMatrix0(Seq1,Seq2)
+        maxI, maxJ=getLocalOptimalPath(matrix1, Seq1, Seq2)
+        traceBack1(matrix1,maxJ, maxI)
+        print ('Smith-Waterman Algorithm (local optimal alignment) result:\n')
+        identityPercentage = printAlignedSequences()
+        print("\nAlignment score: "+ str(matrix1[maxJ][maxI]))
+        print("Identity percentage: " + "{:.2f}".format(identityPercentage)+"%")
+
+
     else:
         matrix2 = initMatrix(Seq1, Seq2)
-        gapPositions = getOptimalGlobalPath(matrix2, Seq1, Seq2)
-        #printMatrix(matrix2)
+        getOptimalGlobalPath(matrix2, Seq1, Seq2)
         traceBackStart(matrix2)
-        print("Needleman–Wunsch Algorithm (global optimal alignment) result:")
+        print("Needleman–Wunsch Algorithm (global optimal alignment) result:\n")
         
         identityPercentage = printAlignedSequences()
-        print("Alignment score: "+ str(matrix2[len(matrix2)-1][len(matrix2[0])-1]))
+        print("\nAlignment score: "+ str(matrix2[len(matrix2)-1][len(matrix2[0])-1]))
         print("Identity percentage: " + "{:.2f}".format(identityPercentage)+"%")
         
-        
-        
-        
-    
-    
-    
+         
 
 if __name__ == '__main__' :
     opts , args = getopt.getopt(sys.argv[1:],'h',['gap=','file1=','file2=', 'scope=', 'scoringfile='])
