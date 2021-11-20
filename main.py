@@ -1,44 +1,11 @@
 from os import X_OK
-import numpy as np
-from numpy import *
 import sys 
 import getopt
-from SmithWaterman import *
 
-substitionMatrixFile = open("scoring1.txt")
-lines = substitionMatrixFile.readlines()
-aminoacids= lines[20].split("\t")
+
 pathPositions = []
 
 
-
-"""  
-def printIdentityPercentage(seqA, seqB):
-    matchCount = 0
-    for i in range(len(seqA[0])):
-        if(seqA[0][i] == seqB[0][i]):
-            matchCount+=1
-    print("Identity percentage: " + "{:.2f}".format(matchCount*100/len(seqA[0]))+"%")
-    return 
-    
-def getAlignmentScore(seqA, seqB):
-    score = 0
-    gapExtensionCount=0
-
-    #we get score from index 0 because it has no preIndex
-    score+=compare(seqA[0][0], seqB[0][0])
-    for i in range(1,len(seqA[0])):
-        #checking for consecutive gaps
-        if(seqA[0][i]=="-" and  seqA[0][i-1]=="-"):
-            gapExtensionCount+=1
-        elif(seqB[i][0]=="-" and seqB[i-1][0]=="-"):
-            gapExtensionCount+=1
-        score+= compare(seqA[0][i], seqB[0][i])
-    
-    score += (gapExtensionPenalty - gapPenalty) * gapExtensionCount
-    return score      
-    
-    """
 
 def get_string(file):
     
@@ -55,18 +22,11 @@ def get_string(file):
 
 
 def compare(str1,str2):
-    #scoring system 
     if(str2 == "-"):
         return gapPenalty
     index1 = aminoacids.index(str1)
     index2 = aminoacids.index(str2)
-    
-    if(index2>index1):
-    #swap values, because we have half matrix array
-        index = index1
-        index1 = index2
-        index2 = index
-    return int(lines[index1].split("\t")[index2])
+    return int(lines[index1-1][index2])
 
 
 def printAlignedSequences():
@@ -75,7 +35,10 @@ def printAlignedSequences():
     preI = 0
     preJ = 0
     for i,j in pathPositions:
-        if(preI+1 == i and preJ+1 == j):
+        if(preI == 0 and preJ ==0):
+            alignedSeq1 += Seq1[j-1]
+            alignedSeq2 += Seq2[i-1]
+        elif(preI+1 == i and preJ+1 == j):
             alignedSeq1 += Seq1[j-1]
             alignedSeq2 += Seq2[i-1]
         elif(preI+1 == i):
@@ -92,14 +55,49 @@ def printAlignedSequences():
     #calculating the identity percentage
     matchCount=0
     for i in range(len(alignedSeq1)):
-        if(alignedSeq1[i]==alignedSeq2[2]):
+        if(alignedSeq1[i]==alignedSeq2[i]):
             matchCount+=1
     if(len(alignedSeq1)==0):
         return 1
     return matchCount*100 / len(alignedSeq1)
     
+def initMatrix(seq1, seq2):
+    x = len(seq1)+1
+    y = len(seq2)+1
+    distanceMatrix = []
+    for i in range(y):
+        col = []
+        for j in range(x):
+            col.append(0)
+        distanceMatrix.append(col)
+    for i in range(x):
+        distanceMatrix[0][i] = -i
+    for y in range(y):
+        distanceMatrix[y][0] = -y
+    return distanceMatrix
 
-    
+
+
+
+
+def printMatrix(matrix):
+    for y in range(len(matrix)):
+        for x in range(len(matrix[0])):
+            print(str(matrix[y][x]), end= "\t")
+        print("")
+
+
+
+def initMatrix0(Seq1,Seq2):
+    matrix = []
+    for j in range(len(Seq2)+1):
+        row = []
+        for  i in range(len(Seq1)+1):
+            row.append(0)
+        matrix.append(row)
+    return matrix
+
+  
 
 def getOptimalGlobalPath(matrix, seq1, seq2):
     gapPositions = [[0]*len(matrix[0]) for i in range(len(matrix))]
@@ -110,8 +108,9 @@ def getOptimalGlobalPath(matrix, seq1, seq2):
             if(gapPositions[j][i-1]==1):
                 b = matrix[j][i-1] + gapExtensionPenalty
         
-            if(gapPositions[j][i-1]!= 1 or gapPositions[j-1][i]!= 1):
+            if(gapPositions[j-1][i]!= 1):
                 a = matrix[j-1][i] + gapPenalty
+            if(gapPositions[j][i-1]!= 1):
                 b = matrix[j][i-1] + gapPenalty
             
             c = matrix[j-1][i-1] + compare(seq1[i-1],seq2[j-1])
@@ -142,8 +141,9 @@ def getLocalOptimalPath(matrix, seq1, seq2):
             if(gapPositions[j][i-1]==1):
                 b = matrix[j][i-1] + gapExtensionPenalty
         
-            if(gapPositions[j][i-1]!= 1 or gapPositions[j-1][i]!= 1):
+            if(gapPositions[j-1][i]!= 1):
                 a = matrix[j-1][i] + gapPenalty
+            if(gapPositions[j][i-1]!= 1):
                 b = matrix[j][i-1] + gapPenalty
             
             c = matrix[j-1][i-1] + compare(seq1[i-1],seq2[j-1])
@@ -250,12 +250,36 @@ def traceBack(matrix, y, x):
     else:
         return False
  
+def initScoringMatrix(scoringFile):
+    substitionMatrixFile = open(scoringFile)
+    rawLines = substitionMatrixFile.readlines()
+    aminoacids = rawLines[6].split("  ")
+    aminoacids[1] = aminoacids[1][1]
+    lines = []
+    tempLine= []
+    for i in range(7,len(rawLines)):
+        tempLine = rawLines[i].replace("  ", " ")
+        tempLine = tempLine.split(" ")
+        lines.append(tempLine)
+        
+    return aminoacids, lines
 
 
 
 def main():
-    f= open('damn.txt', 'w') 
+    print("-"*80)
+    print("Scoring matrix is adjustable but the file format must be as same as given BLOSUM62.txt")
+    print("How to run the program ")
+    print("python main.py --scope=global  --prots=prots.txt  --scoringfile=blosum62.txt ")
+    print("also --gap, --gapextension can be used")
+    print("output is at outtt1.txt ")
+    print("-"*80)
+
+    f= open('outtt1.txt', 'w') 
     sys.stdout = f
+    print(scoringFile + "\tgap opening penalty: " + str(gapPenalty)+ "\tgap extension penalty: "+ str(gapExtensionPenalty))
+    global aminoacids, lines
+    aminoacids, lines = initScoringMatrix(scoringFile)
     if(scope == "local"):
         matrix1 = initMatrix0(Seq1,Seq2)
         maxI, maxJ=getLocalOptimalPath(matrix1, Seq1, Seq2)
@@ -278,25 +302,28 @@ def main():
      
 
 if __name__ == '__main__' :
-    opts , args = getopt.getopt(sys.argv[1:],'h',['gap=','file1=','file2=', 'scope=', 'scoringfile='])
-    InputFile1 = 'C:\\Users\\kykse\\Desktop\\mygod\\Sequence\\Seq1.fasta'
-    InputFile2 = 'C:\\Users\\kykse\\Desktop\\mygod\\Sequence\\Seq2.fasta'
-    scoringFile = 'C:\\Users\\kykse\\Desktop\\mygod\\scoring1.txt'
-    gapPenalty = -5
-    gapExtensionPenalty = -2
+    opts , args = getopt.getopt(sys.argv[1:],'h',['gap=','prots=', 'scope=', 'scoringfile=', 'gapextension='])
+    proteinsFile = "prots.txt"
+    scoringFile = 'scoring1.txt'
+    gapPenalty = -10
+    gapExtensionPenalty = -5
     scope="global"
+
     
     for op , value in opts:
-        if op == '--file1':
-            InputFile1 = value
-        elif op == '--file2':
-            InputFile2 = value
+        if op == '--prots':
+            proteinsFile = value
         elif op == '--scoringfile':
-            InputFile2 = value
+            scoringFile = value
         elif op == '--gap':
-            match_score = float(value)
+            gapPenalty = float(value)
         elif op == '--scope':
             scope = value
-    Seq1 = get_string(InputFile1)
-    Seq2 = get_string (InputFile2)
+        elif op == '--gapextension':
+            gapExtensionPenalty = float(value)
+    
+    proteinsFile1 = open(proteinsFile, "r")
+    proteins = proteinsFile1.readlines()
+    Seq1 = proteins[0].split("\n")[0]
+    Seq2 = proteins[1].split("\n")[0]
     main()
